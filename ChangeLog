@@ -10,6 +10,7 @@ ISSUES, AS YOUR E-MAIL MAY BE LOST
 
 2023-11-05 Colin Petrie <colin@spakka.net>
 	* Include CPPFLAGS
+	* Removed BGPDUMP_HAVE_IPV6 define
 
 2020-09-20 Colin Petrie <colin@spakka.net> 
 	* Use dynamic allocation for prefixes in NLRI

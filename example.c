@@ -36,9 +36,7 @@ Author: Dan Ardelean (dan@ripe.net)
     void process(BGPDUMP_ENTRY *entry);
     void show_attr(attributes_t *attr);
     void show_prefixes(int count,struct prefix *prefix);
-#ifdef BGPDUMP_HAVE_IPV6
     void show_v6_prefixes(int count, struct prefix *prefix);
-#endif
 
 int main(int argc, char **argv) {  
     BGPDUMP *my_dump;
@@ -163,13 +161,11 @@ if(entry->type == BGPDUMP_TYPE_ZEBRA_BGP && entry->subtype == BGPDUMP_SUBTYPE_ZE
 	    if(entry->subtype == AFI_IP) {
 		strcpy(prefix, inet_ntoa(entry->body.mrtd_table_dump.prefix.v4_addr));
 		strcpy(peer_ip, inet_ntoa(entry->body.mrtd_table_dump.peer_ip.v4_addr));
-#ifdef BGPDUMP_HAVE_IPV6
 	    } else if(entry->subtype == AFI_IP6) {
 		inet_ntop(AF_INET6, &entry->body.mrtd_table_dump.prefix.v6_addr, prefix,
 			  sizeof(prefix));
 		inet_ntop(AF_INET6, &entry->body.mrtd_table_dump.peer_ip.v6_addr, peer_ip,
 			  sizeof(peer_ip));
-#endif
 	    } else {
 		*prefix = '\0';
 		*peer_ip = '\0';
@@ -191,10 +187,8 @@ if(entry->type == BGPDUMP_TYPE_ZEBRA_BGP && entry->subtype == BGPDUMP_SUBTYPE_ZE
 
 	    if(e->afi == AFI_IP) {
 			strcpy(prefix, inet_ntoa(e->prefix.v4_addr));
-#ifdef BGPDUMP_HAVE_IPV6
 	    } else if(e->afi == AFI_IP6) {
 			inet_ntop(AF_INET6, &e->prefix.v6_addr, prefix, INET6_ADDRSTRLEN);
-#endif
 	    } else {
 			printf("Error: BGP table dump version 2 entry with unknown subtype\n");
 			break;
@@ -213,10 +207,8 @@ if(entry->type == BGPDUMP_TYPE_ZEBRA_BGP && entry->subtype == BGPDUMP_SUBTYPE_ZE
 
 			if(e->entries[i].peer->afi == AFI_IP){
 				inet_ntop(AF_INET, &e->entries[i].peer->peer_ip, peer_ip, INET6_ADDRSTRLEN);
-#ifdef BGPDUMP_HAVE_IPV6
 			} else if (e->entries[i].peer->afi == AFI_IP6){
 				inet_ntop(AF_INET6, &e->entries[i].peer->peer_ip, peer_ip, INET6_ADDRSTRLEN);
-#endif
 			} else {
 				sprintf(peer_ip, "N/A, unsupported AF");
 			}
@@ -233,13 +225,11 @@ if(entry->type == BGPDUMP_TYPE_ZEBRA_BGP && entry->subtype == BGPDUMP_SUBTYPE_ZE
 		if(entry->body.zebra_message.address_family == AFI_IP) {
 		    strcpy(source_ip, inet_ntoa(entry->body.zebra_message.source_ip.v4_addr));
 		    strcpy(destination_ip, inet_ntoa(entry->body.zebra_message.destination_ip.v4_addr));
-#ifdef BGPDUMP_HAVE_IPV6
 		} else if(entry->body.zebra_message.address_family == AFI_IP6) {
 		    inet_ntop(AF_INET6, &entry->body.zebra_message.source_ip.v6_addr, source_ip,
 			      sizeof(source_ip));
 		    inet_ntop(AF_INET6, &entry->body.zebra_message.destination_ip.v6_addr, destination_ip,
 			      sizeof(destination_ip));
-#endif
 		} else {
 		    *source_ip = '\0';
 		    *destination_ip = '\0';
@@ -268,20 +258,16 @@ if(entry->type == BGPDUMP_TYPE_ZEBRA_BGP && entry->subtype == BGPDUMP_SUBTYPE_ZE
 			case BGP_MSG_UPDATE:
 			    printf("WITHDRAW        :\n");
 			    show_prefixes(entry->body.zebra_message.withdraw_count,entry->body.zebra_message.withdraw);
-#ifdef BGPDUMP_HAVE_IPV6
 			    if(entry->attr->mp_info &&
 			       (mp_withdraw = MP_IPV6_WITHDRAW(entry->attr->mp_info)) != NULL) {
 				show_v6_prefixes(mp_withdraw->prefix_count, mp_withdraw->nlri);
 			    }
-#endif
 			    printf("ANNOUNCE        :\n");
 			    show_prefixes(entry->body.zebra_message.announce_count,entry->body.zebra_message.announce);
-#ifdef BGPDUMP_HAVE_IPV6
 			    if(entry->attr->mp_info &&
 			       (mp_announce = MP_IPV6_ANNOUNCE(entry->attr->mp_info)) != NULL) {
 				show_v6_prefixes(mp_announce->prefix_count, mp_announce->nlri);
 			    }
-#endif
 			    break;
 			case BGP_MSG_KEEPALIVE:
 			    /* Nothing to do */
@@ -371,7 +357,6 @@ void show_attr(attributes_t *attr) {
 		printf("%s", inet_ntoa(attr->nexthop));
 	    }
 
-#ifdef BGPDUMP_HAVE_IPV6
 	    if( (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MP_REACH_NLRI)) &&
 	         MP_IPV6_ANNOUNCE(attr->mp_info) != NULL) {
 		char addr[INET6_ADDRSTRLEN];
@@ -386,7 +371,6 @@ void show_attr(attributes_t *attr) {
 		if(len == 32)
 		    printf(" %s", inet_ntop(AF_INET6, &mp_nlri->nexthop_local, addr, sizeof(addr)));
 	    }
-#endif
 
 	    printf(have_nexthop ? "\n" : "N/A\n");
 
@@ -420,7 +404,6 @@ void show_prefixes(int count,struct prefix *prefix) {
 	printf("      %s/%d\n",inet_ntoa(prefix[i].address.v4_addr),prefix[i].len);
 }
 
-#ifdef BGPDUMP_HAVE_IPV6
 void show_v6_prefixes(int count, struct prefix *prefix) {
     int i;
     char str[INET6_ADDRSTRLEN];
@@ -430,4 +413,3 @@ void show_v6_prefixes(int count, struct prefix *prefix) {
 	printf("      %s/%d\n",str, prefix[i].len);
     }
 }
-#endif

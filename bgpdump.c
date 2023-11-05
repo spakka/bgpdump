@@ -52,12 +52,9 @@ static void table_line_mrtd_route(BGPDUMP_MRTD_TABLE_DUMP *route,BGPDUMP_ENTRY *
 static void table_line_dump_v2_prefix(BGPDUMP_TABLE_DUMP_V2_PREFIX *e,BGPDUMP_ENTRY *entry);
 static char *describe_origin(int origin);
 static int  bgp4mp_message_direction_receive(BGPDUMP_ENTRY *entry);
-
-#ifdef BGPDUMP_HAVE_IPV6
-    void show_prefixes6(int count,struct prefix *prefix, int addpath);
-    static void table_line_withdraw6(struct prefix *prefix,int count,BGPDUMP_ENTRY *entry,char *time_str);
-    static void table_line_announce6(struct mp_nlri *prefix,int count,BGPDUMP_ENTRY *entry,char *time_str);
-#endif
+void show_prefixes6(int count,struct prefix *prefix, int addpath);
+static void table_line_withdraw6(struct prefix *prefix,int count,BGPDUMP_ENTRY *entry,char *time_str);
+static void table_line_announce6(struct mp_nlri *prefix,int count,BGPDUMP_ENTRY *entry,char *time_str);
 
 static void show_line_prefix(const char* format, const char* time_str, const char* type);
 
@@ -342,7 +339,6 @@ void process(BGPDUMP_ENTRY *entry) {
 	     if(mode==0){
 	        const char *prefix_str = NULL;
 		switch(entry->subtype){
-#ifdef BGPDUMP_HAVE_IPV6
 	    	case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP6:
 	    		printf("TYPE: TABLE_DUMP/INET6\n");
 			prefix_str = fmt_ipv6(entry->body.mrtd_table_dump.prefix,prefix);
@@ -353,7 +349,6 @@ void process(BGPDUMP_ENTRY *entry) {
 			prefix_str = fmt_ipv6(entry->body.mrtd_table_dump.prefix,prefix);
 		break;
 
-#endif
 		case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP:
 			printf("TYPE: TABLE_DUMP/INET\n");
 			prefix_str = inet_ntoa(entry->body.mrtd_table_dump.prefix.v4_addr);
@@ -375,14 +370,12 @@ void process(BGPDUMP_ENTRY *entry) {
 	    	printf("FROM:");
 		switch(entry->subtype)
 		{
-#ifdef BGPDUMP_HAVE_IPV6
 		case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP6:
 		case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP6_32BIT_AS:
 
 			fmt_ipv6(entry->body.mrtd_table_dump.peer_ip,prefix);
 			printf("%s ",prefix);
 			break;
-#endif
 		case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP:
 		case BGPDUMP_SUBTYPE_MRTD_TABLE_DUMP_AFI_IP_32BIT_AS:
 			if (entry->body.mrtd_table_dump.peer_ip.v4_addr.s_addr != 0x00000000L)
@@ -427,10 +420,8 @@ void process(BGPDUMP_ENTRY *entry) {
 
 			if(e->afi == AFI_IP){
 				strncpy(prefix, inet_ntoa(e->prefix.v4_addr), BGPDUMP_ADDRSTRLEN);
-#ifdef BGPDUMP_HAVE_IPV6
 			} else if(e->afi == AFI_IP6){
 				fmt_ipv6(e->prefix, prefix);
-#endif
 			}
 
 			for(i = 0; i < e->entry_count; i++){
@@ -442,13 +433,11 @@ void process(BGPDUMP_ENTRY *entry) {
     				    printf("TYPE: TABLE_DUMP_V2/IPV4_UNICAST_ADDPATH\n");
                     else  
     				    printf("TYPE: TABLE_DUMP_V2/IPV4_UNICAST\n");
-#ifdef BGPDUMP_HAVE_IPV6
 				} else if(e->afi == AFI_IP6){
                     if (addpath)
     				    printf("TYPE: TABLE_DUMP_V2/IPV6_UNICAST_ADDPATH\n");
                     else
     				    printf("TYPE: TABLE_DUMP_V2/IPV6_UNICAST\n");
-#endif
 				}
 	    		printf("PREFIX: %s/%d",prefix, e->prefix_length);
                 if (addpath)
@@ -458,10 +447,8 @@ void process(BGPDUMP_ENTRY *entry) {
 
 				if(e->entries[i].peer->afi == AFI_IP){
 					fmt_ipv4(e->entries[i].peer->peer_ip, peer_ip);
-#ifdef BGPDUMP_HAVE_IPV6
 				} else if (e->entries[i].peer->afi == AFI_IP6){
 					fmt_ipv6(e->entries[i].peer->peer_ip, peer_ip);
-#endif
 				} else {
 					sprintf(peer_ip, "[N/A, unsupported AF]");
 				}
@@ -529,13 +516,11 @@ void process(BGPDUMP_ENTRY *entry) {
 					printf("FROM:");
 					switch(entry->body.zebra_message.address_family)
 					{
-#ifdef BGPDUMP_HAVE_IPV6
 						case AFI_IP6:
 
 							fmt_ipv6(entry->body.zebra_message.source_ip,prefix);
 							printf(" %s ",prefix);
 							break;
-#endif
 						case AFI_IP:
 						default:
 							if (entry->body.zebra_message.source_ip.v4_addr.s_addr != 0x00000000L)
@@ -550,13 +535,11 @@ void process(BGPDUMP_ENTRY *entry) {
 					printf("TO:");
 					switch(entry->body.zebra_message.address_family)
 					{
-#ifdef BGPDUMP_HAVE_IPV6
 						case AFI_IP6:
 
 							fmt_ipv6(entry->body.zebra_message.destination_ip,prefix);
 							printf(" %s ",prefix);
 							break;
-#endif
 						case AFI_IP:
 						default:
 							if (entry->body.zebra_message.destination_ip.v4_addr.s_addr != 0x00000000L)
@@ -595,13 +578,8 @@ void process(BGPDUMP_ENTRY *entry) {
                                    return;
 				if ((entry->body.zebra_message.withdraw_count) || (entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MP_UNREACH_NLRI))) 
 				{
-#ifdef BGPDUMP_HAVE_IPV6
 					if ((entry->body.zebra_message.withdraw_count)||(entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST] && entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST]->prefix_count) || (entry->attr->mp_info->withdraw[AFI_IP][SAFI_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP][SAFI_MULTICAST]->prefix_count) || (entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count) ||(entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST] && entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST]->prefix_count) || (entry->attr->mp_info->withdraw[AFI_IP6][SAFI_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP6][SAFI_MULTICAST]->prefix_count) || (entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST]->prefix_count) )
 
-#else
-					if ((entry->body.zebra_message.withdraw_count)||(entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST] && entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST]->prefix_count) || (entry->attr->mp_info->withdraw[AFI_IP][SAFI_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP][SAFI_MULTICAST]->prefix_count) || (entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count))
-
-#endif				
 						printf("WITHDRAW\n");
 					if (entry->body.zebra_message.withdraw_count)
                         
@@ -618,7 +596,6 @@ void process(BGPDUMP_ENTRY *entry) {
                                         if (entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count)
                                                 show_prefixes(entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count,entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST]->nlri, addpath);
 
-#ifdef BGPDUMP_HAVE_IPV6
                                         if (entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST] && entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST]->prefix_count)
                                                 show_prefixes6(entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST]->prefix_count,entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST]->nlri, addpath);
                                 
@@ -627,7 +604,6 @@ void process(BGPDUMP_ENTRY *entry) {
 
                                         if (entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST]->prefix_count)
                                                 show_prefixes6(entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST]->prefix_count,entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST]->nlri, addpath);
-#endif
 				}
 				if ( (entry->body.zebra_message.announce_count) || (entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MP_REACH_NLRI))) 
 				{
@@ -647,7 +623,6 @@ void process(BGPDUMP_ENTRY *entry) {
                                         if (entry->attr->mp_info->announce[AFI_IP][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->announce[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count)
                                                 show_prefixes(entry->attr->mp_info->announce[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count,entry->attr->mp_info->announce[AFI_IP][SAFI_UNICAST_MULTICAST]->nlri, addpath);
 
-#ifdef BGPDUMP_HAVE_IPV6
                                         if (entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST] && entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST]->prefix_count)
                                                 show_prefixes6(entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST]->prefix_count,entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST]->nlri, addpath);
                                 
@@ -656,7 +631,6 @@ void process(BGPDUMP_ENTRY *entry) {
 
                                         if (entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST_MULTICAST]->prefix_count)
                                                 show_prefixes6(entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST_MULTICAST]->prefix_count,entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST_MULTICAST]->nlri, addpath);
-#endif					
 				}
 			   }
 			   else if (mode == 1  || mode == 2) //-m -M
@@ -677,7 +651,6 @@ void process(BGPDUMP_ENTRY *entry) {
                                         if (entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count)
                                                 table_line_withdraw(entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST]->nlri,entry->attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count,entry,time_str);
 
-#ifdef BGPDUMP_HAVE_IPV6						
                                         if (entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST] && entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST]->prefix_count)
                                                 table_line_withdraw6(entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST]->nlri,entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST]->prefix_count,entry,time_str);	
                                         
@@ -686,7 +659,6 @@ void process(BGPDUMP_ENTRY *entry) {
                                         
                                         if (entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST]->prefix_count)
                                                 table_line_withdraw6(entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST]->nlri,entry->attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST]->prefix_count,entry,time_str);
-#endif	
                         
 				}
 				if ( (entry->body.zebra_message.announce_count) || (entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MP_REACH_NLRI)))
@@ -701,14 +673,12 @@ void process(BGPDUMP_ENTRY *entry) {
                                                 table_line_announce_1(entry->attr->mp_info->announce[AFI_IP][SAFI_MULTICAST],entry->attr->mp_info->announce[AFI_IP][SAFI_MULTICAST]->prefix_count,entry,time_str);
                                         if (entry->attr->mp_info->announce[AFI_IP][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->announce[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count)
                                                 table_line_announce_1(entry->attr->mp_info->announce[AFI_IP][SAFI_UNICAST_MULTICAST],entry->attr->mp_info->announce[AFI_IP][SAFI_UNICAST_MULTICAST]->prefix_count,entry,time_str);
-#ifdef BGPDUMP_HAVE_IPV6						
                                         if (entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST] && entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST]->prefix_count)
                                                 table_line_announce6(entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST],entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST]->prefix_count,entry,time_str);	
                                         if (entry->attr->mp_info->announce[AFI_IP6][SAFI_MULTICAST] && entry->attr->mp_info->announce[AFI_IP6][SAFI_MULTICAST]->prefix_count)
                                                 table_line_announce6(entry->attr->mp_info->announce[AFI_IP6][SAFI_MULTICAST],entry->attr->mp_info->announce[AFI_IP6][SAFI_MULTICAST]->prefix_count,entry,time_str);
                                         if (entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST_MULTICAST] && entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST_MULTICAST]->prefix_count)
                                                 table_line_announce6(entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST_MULTICAST],entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST_MULTICAST]->prefix_count,entry,time_str);
-#endif
 					
 				}  
 			   }
@@ -725,13 +695,11 @@ void process(BGPDUMP_ENTRY *entry) {
 				printf("FROM:");
 				switch(entry->body.zebra_message.address_family)
 					{
-#ifdef BGPDUMP_HAVE_IPV6
 						case AFI_IP6:
 
 							fmt_ipv6(entry->body.zebra_message.source_ip,prefix);
 							printf(" %s ",prefix);
 							break;
-#endif
 						case AFI_IP:
 						default:
 							if (entry->body.zebra_message.source_ip.v4_addr.s_addr != 0x00000000L)
@@ -746,13 +714,11 @@ void process(BGPDUMP_ENTRY *entry) {
 				printf("TO:");
 				switch(entry->body.zebra_message.address_family)
 					{
-#ifdef BGPDUMP_HAVE_IPV6
 						case AFI_IP6:
 
 							fmt_ipv6(entry->body.zebra_message.destination_ip,prefix);
 							printf(" %s ",prefix);
 							break;
-#endif
 						case AFI_IP:
 						default:
 							if (entry->body.zebra_message.destination_ip.v4_addr.s_addr != 0x00000000L)
@@ -781,13 +747,11 @@ void process(BGPDUMP_ENTRY *entry) {
 				printf("FROM:");
 				switch(entry->body.zebra_message.address_family)
 					{
-#ifdef BGPDUMP_HAVE_IPV6
 						case AFI_IP6:
 
 							fmt_ipv6(entry->body.zebra_message.source_ip,prefix);
 							printf(" %s ",prefix);
 							break;
-#endif
 						case AFI_IP:
 						default:
 							if (entry->body.zebra_message.source_ip.v4_addr.s_addr != 0x00000000L)
@@ -802,13 +766,11 @@ void process(BGPDUMP_ENTRY *entry) {
 				printf("TO:");
 				switch(entry->body.zebra_message.address_family)
 					{
-#ifdef BGPDUMP_HAVE_IPV6
 						case AFI_IP6:
 
 							fmt_ipv6(entry->body.zebra_message.destination_ip,prefix);
 							printf(" %s ",prefix);
 							break;
-#endif
 						case AFI_IP:
 						default:
 							if (entry->body.zebra_message.destination_ip.v4_addr.s_addr != 0x00000000L)
@@ -955,13 +917,11 @@ void process(BGPDUMP_ENTRY *entry) {
 					printf("FROM:");
 					switch(entry->body.zebra_message.address_family)
 					{
-#ifdef BGPDUMP_HAVE_IPV6
 						case AFI_IP6:
 
 							fmt_ipv6(entry->body.zebra_message.source_ip,prefix);
 							printf(" %s ",prefix);
 							break;
-#endif
 						case AFI_IP:
 						default:
 							if (entry->body.zebra_message.source_ip.v4_addr.s_addr != 0x00000000L)
@@ -976,13 +936,11 @@ void process(BGPDUMP_ENTRY *entry) {
 					printf("TO:");
 					switch(entry->body.zebra_message.address_family)
 					{
-#ifdef BGPDUMP_HAVE_IPV6
 						case AFI_IP6:
 
 							fmt_ipv6(entry->body.zebra_message.destination_ip,prefix);
 							printf(" %s ",prefix);
 							break;
-#endif
 						case AFI_IP:
 						default:
 							if (entry->body.zebra_message.destination_ip.v4_addr.s_addr != 0x00000000L)
@@ -1007,13 +965,11 @@ void process(BGPDUMP_ENTRY *entry) {
 		    	printf("PEER:");
 			switch(entry->body.zebra_state_change.address_family)
 			{
-#ifdef BGPDUMP_HAVE_IPV6
 			case AFI_IP6:
 
 				fmt_ipv6(entry->body.zebra_state_change.source_ip,prefix);
 				printf(" %s ",prefix);
 				break;
-#endif
 			case AFI_IP:
 			default:
 				if (entry->body.zebra_state_change.source_ip.v4_addr.s_addr != 0x00000000L)
@@ -1033,11 +989,9 @@ void process(BGPDUMP_ENTRY *entry) {
 		    {
 			switch(entry->body.zebra_state_change.address_family)
 			{
-#ifdef BGPDUMP_HAVE_IPV6
 				case AFI_IP6:
                     fmt_ipv6(entry->body.zebra_state_change.source_ip, prefix);
 					break;
-#endif
 				case AFI_IP:
 				default:
                     sprintf(prefix, "%s", inet_ntoa(entry->body.zebra_state_change.source_ip.v4_addr));
@@ -1269,7 +1223,6 @@ void show_attr(attributes_t *attr) {
 	    if( (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MP_REACH_NLRI) )!=0)
 	    {
 		    printf("MP_REACH_NLRI");
-#ifdef BGPDUMP_HAVE_IPV6
 		    if (attr->mp_info->announce[AFI_IP6][SAFI_UNICAST] || attr->mp_info->announce[AFI_IP6][SAFI_MULTICAST] || attr->mp_info->announce[AFI_IP6][SAFI_UNICAST_MULTICAST])
 		    {
 			   char buf[128];
@@ -1312,7 +1265,6 @@ void show_attr(attributes_t *attr) {
 			   }
 		    }
 		    else
-#endif
 		    {
 			   char buf[128];
 
@@ -1358,7 +1310,6 @@ void show_attr(attributes_t *attr) {
 	    if( (attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MP_UNREACH_NLRI) )!=0)
 	    {
 		    printf("MP_UNREACH_NLRI");
-#ifdef BGPDUMP_HAVE_IPV6
 		    if (attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST] || attr->mp_info->withdraw[AFI_IP6][SAFI_MULTICAST] || attr->mp_info->withdraw[AFI_IP6][SAFI_UNICAST_MULTICAST])
 
 		    {
@@ -1380,7 +1331,6 @@ void show_attr(attributes_t *attr) {
 			   }
 		    }
 		    else
-#endif
 		    {
 			   
 			   if (attr->mp_info->withdraw[AFI_IP][SAFI_UNICAST])
@@ -1422,7 +1372,6 @@ void show_prefixes(int count,struct prefix *prefix, int addpath) {
 	        printf("  %s/%d\n",inet_ntoa(prefix[i].address.v4_addr),prefix[i].len);
 
 }
-#ifdef BGPDUMP_HAVE_IPV6
 void show_prefixes6(int count,struct prefix *prefix, int addpath)
 {
 	int i;
@@ -1435,8 +1384,6 @@ void show_prefixes6(int count,struct prefix *prefix, int addpath)
 	        printf("  %s/%d\n",fmt_ipv6(prefix[i].address,buf),prefix[i].len);
 
 }
-#endif
-
 
 static void table_line_withdraw(struct prefix *prefix,int count,BGPDUMP_ENTRY *entry,char *time_str)
 {
@@ -1448,7 +1395,6 @@ static void table_line_withdraw(struct prefix *prefix,int count,BGPDUMP_ENTRY *e
         show_line_prefix(get_bgp4mp_format(entry), time_str, "W");
 
 		switch(entry->body.zebra_message.address_family) {
-#ifdef BGPDUMP_HAVE_IPV6
 			case AFI_IP6:
 				bgp4mp_message_direction_receive(entry)
 					? printf("%s|%u|",
@@ -1458,7 +1404,6 @@ static void table_line_withdraw(struct prefix *prefix,int count,BGPDUMP_ENTRY *e
 						fmt_ipv6(entry->body.zebra_message.destination_ip,buf),
 						entry->body.zebra_message.destination_as);
 				break;
-#endif
             		case AFI_IP:
             		default:
 				bgp4mp_message_direction_receive(entry)
@@ -1475,8 +1420,6 @@ static void table_line_withdraw(struct prefix *prefix,int count,BGPDUMP_ENTRY *e
             : printf("%s/%d\n",inet_ntoa(prefix[idx].address.v4_addr),prefix[idx].len);
         }
 }
-
-#ifdef BGPDUMP_HAVE_IPV6
 
 static void table_line_withdraw6(struct prefix *prefix,int count,BGPDUMP_ENTRY *entry,char *time_str)
 {
@@ -1518,7 +1461,6 @@ static void table_line_withdraw6(struct prefix *prefix,int count,BGPDUMP_ENTRY *
             : printf("\n");
         }	
 }
-#endif
 
 
 static void table_line_announce(struct prefix *prefix,int count,BGPDUMP_ENTRY *entry,char *time_str)
@@ -1542,13 +1484,11 @@ static void table_line_announce(struct prefix *prefix,int count,BGPDUMP_ENTRY *e
 		{
 			switch(entry->body.zebra_message.address_family)
 			{
-#ifdef BGPDUMP_HAVE_IPV6
 			case AFI_IP6:
 				bgp4mp_message_direction_receive(entry)
 					? printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.source_ip,buf),entry->body.zebra_message.source_as)
 					: printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.destination_ip,buf),entry->body.zebra_message.destination_as);
 				break;
-#endif
 			case AFI_IP:
 			default:
 				bgp4mp_message_direction_receive(entry)
@@ -1597,13 +1537,11 @@ static void table_line_announce(struct prefix *prefix,int count,BGPDUMP_ENTRY *e
 		{
 			switch(entry->body.zebra_message.address_family)
 			{
-#ifdef BGPDUMP_HAVE_IPV6
 			case AFI_IP6:
 				bgp4mp_message_direction_receive(entry)
 					? printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.source_ip,buf),entry->body.zebra_message.source_as)
 					: printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.destination_ip,buf),entry->body.zebra_message.destination_as);
 				break;
-#endif
 			case AFI_IP:
 			default:
 				bgp4mp_message_direction_receive(entry)
@@ -1643,13 +1581,11 @@ static void table_line_announce_1(struct mp_nlri *prefix,int count,BGPDUMP_ENTRY
 			{
 				switch(entry->body.zebra_message.address_family)
 				{
-#ifdef BGPDUMP_HAVE_IPV6
 				case AFI_IP6:
 					bgp4mp_message_direction_receive(entry)
 						? printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.source_ip,buf),entry->body.zebra_message.source_as)
 						: printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.destination_ip,buf),entry->body.zebra_message.destination_as);
 					break;
-#endif
 				case AFI_IP:
 				default:
 					bgp4mp_message_direction_receive(entry)
@@ -1699,13 +1635,11 @@ static void table_line_announce_1(struct mp_nlri *prefix,int count,BGPDUMP_ENTRY
 
 				switch(entry->body.zebra_message.address_family)
 				{
-#ifdef BGPDUMP_HAVE_IPV6
 				case AFI_IP6:
 					bgp4mp_message_direction_receive(entry)
 						? printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.source_ip,buf),entry->body.zebra_message.source_as)
 						: printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.destination_ip,buf),entry->body.zebra_message.destination_as);
 					break;
-#endif
 				case AFI_IP:
 				default:
 					bgp4mp_message_direction_receive(entry)
@@ -1757,13 +1691,11 @@ static void table_line_announce_1(struct mp_nlri *prefix,int count,BGPDUMP_ENTRY
 		{
 			switch(entry->body.zebra_message.address_family)
 			{
-#ifdef BGPDUMP_HAVE_IPV6
 			case AFI_IP6:
 				bgp4mp_message_direction_receive(entry)
 					? printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.source_ip,buf),entry->body.zebra_message.source_as)
 					: printf("%s|%u|",fmt_ipv6(entry->body.zebra_message.destination_ip,buf),entry->body.zebra_message.destination_as);
 				break;
-#endif
 			case AFI_IP:
 			default:
 				bgp4mp_message_direction_receive(entry)
@@ -1780,7 +1712,6 @@ static void table_line_announce_1(struct mp_nlri *prefix,int count,BGPDUMP_ENTRY
 
 }
 
-#ifdef BGPDUMP_HAVE_IPV6
 static void table_line_announce6(struct mp_nlri *prefix,int count,BGPDUMP_ENTRY *entry,char *time_str)
 {
 	int idx  ;
@@ -1898,8 +1829,6 @@ static void table_line_announce6(struct mp_nlri *prefix,int count,BGPDUMP_ENTRY 
 	}
 
 }
-#endif
-
 
 static void table_line_mrtd_route(BGPDUMP_MRTD_TABLE_DUMP *route,BGPDUMP_ENTRY *entry)
 {
@@ -1930,14 +1859,12 @@ static void table_line_mrtd_route(BGPDUMP_MRTD_TABLE_DUMP *route,BGPDUMP_ENTRY *
     }
     show_line_prefix("TABLE_DUMP", time_str, "B");
 
-#ifdef BGPDUMP_HAVE_IPV6
 	    	if (entry->subtype == AFI_IP6)
 		{
 		    fmt_ipv6(route->peer_ip,peer);
 		    fmt_ipv6(route->prefix,prefix);
 		}
 	    	else
-#endif
                 {
 		    strncpy(peer, inet_ntoa(route->peer_ip.v4_addr), BGPDUMP_ADDRSTRLEN);
                     strncpy(prefix, inet_ntoa(route->prefix.v4_addr), BGPDUMP_ADDRSTRLEN);
@@ -1956,13 +1883,11 @@ static void table_line_mrtd_route(BGPDUMP_MRTD_TABLE_DUMP *route,BGPDUMP_ENTRY *
 	            if( (entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MULTI_EXIT_DISC) ) ==0)
 	            nmed=0;
 			    
-#ifdef BGPDUMP_HAVE_IPV6
 	    	if ((entry->attr->flag & ATTR_FLAG_BIT(BGP_ATTR_MP_REACH_NLRI)) && entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST])
 		{
 		    fmt_ipv6(entry->attr->mp_info->announce[AFI_IP6][SAFI_UNICAST]->nexthop,nexthop);
 		}
 	    	else
-#endif
                 {
 		    strncpy(nexthop, inet_ntoa(entry->attr->nexthop), BGPDUMP_ADDRSTRLEN);
 		}
@@ -2032,18 +1957,14 @@ static void table_line_dump_v2_prefix(BGPDUMP_TABLE_DUMP_V2_PREFIX *e,BGPDUMP_EN
         
         if(e->entries[i].peer->afi == AFI_IP){
             fmt_ipv4(e->entries[i].peer->peer_ip, peer);
-#ifdef BGPDUMP_HAVE_IPV6
         } else if(e->entries[i].peer->afi == AFI_IP6){
             fmt_ipv6(e->entries[i].peer->peer_ip, peer);
-#endif
         }
         
         if(e->afi == AFI_IP) {
             fmt_ipv4(e->prefix, prefix);
-#ifdef BGPDUMP_HAVE_IPV6
         } else if(e->afi == AFI_IP6) {
             fmt_ipv6(e->prefix, prefix);
-#endif
         }
 
         time_t *t;
