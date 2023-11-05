@@ -23,9 +23,9 @@ LIB_H	 = bgpdump_attr.h bgpdump_formats.h bgpdump_lib.h bgpdump_mstream.h
 LIB_O	 = bgpdump_lib.o bgpdump_mstream.o cfile_tools.o util.o inet_ntop.o
 OTHER    = *.in configure bgpdump.spec README* ChangeLog COPYING*
 
-SOVER_MAJOR = 0
-SOVER_MINOR = 0
-SOVER_PATCH = 0
+SOVER_MAJOR = 1
+SOVER_MINOR = 6
+SOVER_PATCH = 2
 SOVER       = $(SOVER_MAJOR).$(SOVER_MINOR).$(SOVER_PATCH)
 SONAME      = libbgpdump.so.$(SOVER_MAJOR)
 
